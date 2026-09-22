@@ -1,0 +1,345 @@
+/*　更新日
+	2024/12/20
+	2024/12/21
+	2024/12/22
+	2024/12/23
+	2024/12/24
+	2024/12/26
+	2025/01/07
+	2025/01/17
+	2025/11/18
+*/
+/* - - - - - - - -  - 参考文献 - - - - - - - - - - */
+
+/*	ツェラーの公式 - Wikipedia
+		https://ja.wikipedia.org/wiki/%E3%83%84%E3%82%A7%E3%83%A9%E3%83%BC%E3%81%AE%E5%85%AC%E5%BC%8F#cite_ref-11
+
+	床関数と天井関数 - Wikipedia
+		https://ja.wikipedia.org/wiki/%E5%BA%8A%E9%96%A2%E6%95%B0%E3%81%A8%E5%A4%A9%E4%BA%95%E9%96%A2%E6%95%B0#%E5%BA%8A%E9%96%A2%E6%95%B0
+
+	剰余演算 - Wikipedia
+		https://ja.wikipedia.org/wiki/%E5%89%B0%E4%BD%99%E6%BC%94%E7%AE%97
+
+	どの年がうるう年になるの？ | 国立天文台(NAOJ)
+		https://www.nao.ac.jp/faq/a0306.html#:~:text=%E3%82%B0%E3%83%AC%E3%82%B4%E3%83%AA%E3%82%AA%E6%9A%A6%E6%B3%95%E3%81%A7%E3%81%AF%E3%80%81%E3%81%86%E3%82%8B%E3%81%86%E5%B9%B4%E3%82%92,%E5%B9%B4%E3%81%AF%E5%B9%B3%E5%B9%B4%E3%81%A8%E3%81%99%E3%82%8B%E3%80%82
+
+	各月の日数について #JavaScript - Qiita
+		https://qiita.com/yama-t/items/74522560cc3848a9d8cf
+
+	1分でできるJavaScriptで国民の祝日を判定する方法 | iwb.jp
+		https://iwb.jp/javascript-new-date-is-holiday-check/
+
+	HSP3Dishでのhttpload, httpinfoによるWeb上のバイナリファイル取得について - HSPTV!掲示板
+		https://hsp.tv/play/pforum.php?mode=pastwch&num=80386
+		
+*/
+	#include "hsp3dish.as"
+
+	#include "calender.as"
+	
+	//screen 0, 320, 568
+	
+	#define wx ginfo_winx
+	#define wy ginfo_winy
+	
+	LoadHolydaysCSV holydays
+	
+	year = gettime(0)
+	month = gettime(1)
+	today = gettime(3)
+
+	objsize 60
+	pos 0, 0
+	button gosub "<", *minus
+	pos wx - 60, 0
+	button gosub ">", *plus
+
+	dim daystate, 6, 7, 5
+	//0 : year, 1 : month, 2 : day, 3 : type, 4 : holyday
+
+	gosub *dayset
+	onclick gosub *click
+	onkey gosub *key
+	
+	stop
+
+*minus
+	month -= 1
+	if month = 0 : month = 12 : year --
+	DayFormat year, month, day
+	await
+	gosub *dayset
+	return
+
+*plus
+	month += 1
+	if month = 13 : month = 1 : year ++
+	DayFormat year, month, day
+	await
+	gosub *dayset
+	return
+
+*dayset
+
+	repeat 6
+
+		i = cnt
+		
+		repeat 7
+
+			j = cnt
+			daystate(i, j, 0) = year
+			daystate(i, j, 1) = month
+			daystate(i, j, 2) = ((i * 7) + (j + 1)) - GetDayOfWeek(0, year, month, 1)
+
+			font "", 10
+			AllFormat daystate(i, j, 0), daystate(i, j, 1), daystate(i, j, 2)
+			//mes daystate(i, j, 1)*/
+			await
+
+		loop
+
+	loop
+	gosub *draw
+	return
+	
+
+*draw
+	redraw 0
+	y = 60
+	color 0, 0, 0
+	boxf 2, y - 1, wx - 2, (wy / 10) * 6 + y
+
+	pos (wx / 2) - 32, 0
+	font "", 20
+	mes str(year) + "年"
+	font "", 24
+	mes str(month) + "月"
+	
+	repeat 6
+		i = cnt
+		
+		repeat 7
+			j = cnt
+			gosub *daytypeset
+			
+			switch (daystate(i, j, 3))
+
+				case 0 : color 255, 255, 255 : swbreak
+				case 1 : color 255, 225, 225 : swbreak
+				case 2 : color 225, 225, 255 : swbreak
+				case 3 : color 225, 225, 225 : swbreak
+				case 4 : color 225, 255, 225 : swbreak
+
+			swend
+			
+			boxf (wx / 7) * j + 3, (wy / 10) * i + y, (wx / 7) * (j + 1) + 2, (wy / 10) * (i + 1) + y - 1
+			
+			pos (wx / 7) * j + 4, (wy / 10) * i + y
+			font "", 10
+
+			switch (daystate(i, j, 3))
+
+				case 0 : color 0, 0, 0 : swbreak
+				case 1 : color 255, 0, 0 : swbreak
+				case 2 : color 0, 0, 255 : swbreak
+				case 3 : color 110, 110, 110 : swbreak
+				case 4 : color 0, 200, 0 : swbreak
+
+			swend
+			
+			mes str(daystate(i, j, 2)), 1
+			pos ginfo_cx + 2
+
+			if (holyday != -1) {
+
+				if (4 < (Mstrlen(holyday))) {
+
+					font "", 8
+					holyday_tmp1 = Mstrmid(holyday, 0, 4)
+					holyday_tmp2 = Mstrmid(holyday, 4, Mstrlen(holyday))
+					mes holyday_tmp1
+					mes holyday_tmp2
+
+				} else {
+				
+					font "", 8
+					mes holyday
+
+				}
+
+			}
+			
+			await
+		loop
+		
+		await
+	loop
+
+	gosub *select
+
+	if (clickflag = 1) {
+
+		gosub *select
+
+	}
+	if (keyflag = 1) {
+
+		gosub *select_2
+
+	}
+
+	redraw 1
+	
+	return
+	
+	/*repeat 7
+		i = cnt
+		
+		repeat 5
+			j = cnt
+			color (255 / 7) * i, (255 / 7) * j, 0
+			boxf (wx / 7) * i + 2, (wy / 9) * j + y, (wx / 7) * (i + 1) + 2, (wy / 9) * (j + 1) + y
+			pos (wx / 7) * i + 2, (wy / 9) * j + y
+			color 255, 255, 255
+			mes (i * 5) + (j + 1)
+			await 100
+		loop
+		
+		await
+	loop*/
+
+*click
+
+	mx = mousex
+	my = mousey
+	clickflag = 1
+	gosub *draw
+	
+	return
+
+*key
+
+	stick keys, 0, 1
+	await
+;	if keys & 1 {
+	if wparam = 37 {
+		if jj = 0 {
+			if ii = 1 {
+				gosub *minus
+				ii = 6
+				jj = 6
+			} else : ii -- : jj = 6
+		} else {
+			jj --
+		}
+	} else : if wparam = 39 {
+		if jj = 6 {
+			if ii = 6 {
+				gosub *plus
+				ii = 1
+				jj = 0
+			} else : ii ++ : jj = 0
+		} else {
+			jj ++
+		}
+	} else : if wparam = 38 {
+		if ii = 1 {
+			gosub *minus : ii = 6
+		} else : ii --
+	} else : if wparam = 40 {
+		if ii = 6 {
+			gosub *plus : ii = 1
+		} else : ii ++
+	}
+
+	keyflag = 1
+	gosub *draw
+	return
+
+*daytypeset
+
+	daystart = ((i * 7) + (j + 1)) - GetDayOfWeek(0, year, month, 1)
+	dayofweek = GetDayOfWeek(0, daystate(i, j, 0), daystate(i, j, 1), daystate(i, j, 2))
+	holyday = GetHolydays(daystate(i, j, 0), daystate(i, j, 1), daystate(i, j, 2))
+	
+	if (daystate(i, j, 0) = gettime(0)) and (daystate(i, j, 1) = gettime(1)) and (daystate(i, j, 2) = gettime(3)) {
+		
+		daystate(i, j, 3) = 4
+		if (daystate(5, 6, 3) = 0) {
+			
+			ii = i + 1
+			jj = j
+
+		}
+
+	} else : if (daystart < 1) or (GetMaxDay(year, month) < daystart) {
+		
+		daystate(i, j, 3) = 3
+		
+	} else : if (dayofweek = 0) or (holyday != -1){
+
+		daystate(i, j, 3) = 1
+
+	} else : if (dayofweek = 6) {
+
+		daystate(i, j, 3) = 2
+
+	} else {
+		
+		daystate(i, j, 3) = 0
+		
+	}
+
+	return
+
+*select
+
+	if (2 <= mx) and (mx <= wx - 2) and ((y - 1) <= my) and (my <= ((wy / 10) * 6 + y)) {
+
+		//color 0, 0, 0
+		//boxf 2, y - 1, wx - 2, (wy / 10) * 6 + y
+		//if (year = gettime(0)) and (month = gettime(1)) and (day = gettime(3) + 7) {
+		
+		//color 0, 225, 0
+		;pget (wx / 7) * j + 2, (wy / 10) * i + 
+
+		ii = my / (wy / 10)
+		jj = mx / (wx / 7)
+			
+
+	}
+
+*select_2
+
+	color 255, 0, 225
+
+	repeat 3
+		
+		line (wx / 7) * jj + 3, (wy / 10) * ii + y - (cnt + 1), (wx / 7) * (jj + 1) + 2, (wy / 10) * ii + y - (cnt + 1)
+		line (wx / 7) * jj - (cnt - 3), (wy / 10) * ii + y - (cnt), (wx / 7) * jj - (cnt - 3), (wy / 10) * (ii - 1) + y - (cnt)
+		line (wx / 7) * jj + 3, (wy / 10) * (ii - 1) + y - (cnt), (wx / 7) * (jj + 1) + 2, (wy / 10) * (ii - 1) + y - (cnt)
+		line (wx / 7) * (jj + 1) - (cnt - 3), (wy / 10) * ii + y - (cnt), (wx / 7) * (jj + 1) - (cnt - 3), (wy / 10) * (ii - 1) + y - (cnt)
+		await
+
+	loop
+
+	pos 2, 400
+	font "", 20
+
+	
+	holyday = GetHolydays(daystate(ii - 1, jj, 0), daystate(ii - 1, jj, 1), daystate(ii - 1, jj, 2))
+	color 0, 0, 0
+	if (holyday != -1) {
+
+		//mes  str(daystate(ii - 1, jj, 0)) + "年" + daystate(ii - 1, jj, 1) + "月" + daystate(ii - 1, jj, 2) + "日(" + GetDayOfWeek(0, daystate(ii - 1, jj, 3)) + ")　" + holyday
+		mes str(daystate(ii - 1, jj, 0)) + "年" + daystate(ii - 1, jj, 1) + "月" + daystate(ii - 1, jj, 2) + "日(" + GetDayOfWeek(2, daystate(ii - 1, jj, 0), daystate(ii - 1, jj, 1), daystate(ii - 1, jj, 2)) + ")　" + holyday
+
+	} else {
+
+		mes str(daystate(ii - 1, jj, 0)) + "年" + daystate(ii - 1, jj, 1) + "月" + daystate(ii - 1, jj, 2) + "日(" + GetDayOfWeek(2, daystate(ii - 1, jj, 0), daystate(ii - 1, jj, 1), daystate(ii - 1, jj, 2)) + ")"
+		
+	}
+	clickflag = 0
+
+	return
